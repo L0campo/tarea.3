@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estadística de Población de Colombia</title>
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f6f6f6;
+        }
+        #container{
+            max-width: 700px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        }
+        input{
+            width: 70%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button{
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .result{
+            margin-top: 20px;
+            padding: 20px;
+            background: #e6e6e6;
+            border-radius: 10px;
+        }
+        ul li{
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <h1>Estadística de Población de Colombia</h1>
+
+    <input id="buscar" placeholder="Ingresa departamento o ciudad">
+    <button onclick="buscarDatos()">Buscar</button>
+
+    <div id="resultado" class="result"></div>
+</div>
+
+<script>
+    async function buscarDatos() {
+        const valor = document.getElementById("buscar").value.trim().toLowerCase();
+        const div = document.getElementById("resultado");
+
+        if (!valor) {
+            div.innerHTML = "<p>Por favor ingrese un departamento o ciudad.</p>";
+            return;
+        }
+
+        div.innerHTML = "<p>Cargando...</p>";
+
+        try {
+
+            const departamentos = await fetch("https://api-colombia.com/api/v1/Department")
+                .then(r => r.json());
+
+
+            const dep = departamentos.find(d => d.name.toLowerCase() === valor);
+
+            if (dep) {
+                await mostrarDepartamento(dep);
+                return;
+            }
+
+            const ciudades = await fetch("https://api-colombia.com/api/v1/City")
+                .then(r => r.json());
+
+            const city = ciudades.find(c => c.name.toLowerCase() === valor);
+
+            if (city) {
+                mostrarCiudad(city);
+                return;
+            }
+
+            div.innerHTML = `<p>No se encontró información para: <b>${valor}</b></p>`;
+            
+        } catch (error) {
+            div.innerHTML = "<p>Error al consultar la API.</p>";
+            console.error(error);
+        }
+    }
+
+
+    async function mostrarDepartamento(dep) {
+        const div = document.getElementById("resultado");
+
+        const ciudades = await fetch(`https://api-colombia.com/api/v1/Department/${dep.id}/cities`)
+            .then(r => r.json());
+
+        let totalPoblacion = ciudades.reduce((sum, c) => sum + (c.population || 0), 0);
+
+        div.innerHTML = `
+            <h2>${dep.name}</h2>
+            <p><b>Población total:</b> ${totalPoblacion.toLocaleString()}</p>
+            <p><b>Capital:</b> ${dep.cityCapital?.name || "No disponible"}</p>
+            <p><b>Superficie:</b> ${dep.surface || "No disponible"} km²</p>
+
+            <h3>Municipios:</h3>
+            <ul>
+                ${ciudades.map(c => `
+                    <li>${c.name}: ${c.population?.toLocaleString() || "Sin dato"}</li>
+                `).join("")}
+            </ul>
+        `;
+    }
+
+
+    function mostrarCiudad(ciudad) {
+        const div = document.getElementById("resultado");
+
+        div.innerHTML = `
+            <h2>${ciudad.name}</h2>
+            <p><b>Población:</b> ${ciudad.population?.toLocaleString() || "Sin dato"}</p>
+            <p><b>Departamento:</b> ${ciudad.department?.name || "No disponible"}</p>
+        `;
+    }
+</script>
+</body>
+</html>
